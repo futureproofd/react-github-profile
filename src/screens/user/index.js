@@ -1,7 +1,7 @@
 /* @jsx jsx */
 import {jsx} from '@emotion/core'
 
-import {Component} from 'react'
+import {useContext, useState} from 'react'
 import PropTypes from 'prop-types'
 import {Container, Row, Column} from '../../shared/layout'
 import {
@@ -12,7 +12,7 @@ import {
   LoadingMessagePage,
 } from '../../shared/pattern'
 import {Context as GitHubContext} from '../../github-client'
-import Query from './components/query'
+import {useQuery} from './components/query'
 import Profile from './components/profile'
 import RepoFilter from './components/repo-filter'
 import RepoList from './components/repo-list'
@@ -109,68 +109,56 @@ function normalizeUserData(data) {
   }
 }
 
-class User extends Component {
-  static propTypes = {
-    username: PropTypes.string,
-  }
-  static contextType = GitHubContext
-  state = {filter: ''}
+function User({username}) {
+  const {logout} = useContext(GitHubContext)
+  const [filter, setFilter] = useState('')
 
-  handleFilterUpdate = filter => {
-    this.setState({filter})
-  }
+  //refactored from a render props query component
+  // this is similar to loading on mount
+  const {fetching, data, error} = useQuery({
+    query: userQuery,
+    variables: {username},
+    normalize: normalizeUserData,
+  })
 
-  render() {
-    const {username} = this.props
-    const {filter} = this.state
-    return (
-      <Query
-        query={userQuery}
-        variables={{username}}
-        normalize={normalizeUserData}
-      >
-        {({fetching, data, error}) =>
-          error ? (
-            <IsolatedContainer>
-              <p>There was an error loading the data</p>
-              <pre>{JSON.stringify(error, null, 2)}</pre>
-            </IsolatedContainer>
-          ) : fetching ? (
-            <LoadingMessagePage>Loading data for {username}</LoadingMessagePage>
-          ) : data ? (
-            <UserContext.Provider value={data}>
-              <Container>
-                <Row>
-                  <Column width="3">
-                    <Profile />
-                    <PrimaryButton
-                      css={{marginTop: 20, width: '100%'}}
-                      onClick={this.context.logout}
-                    >
-                      Logout
-                    </PrimaryButton>
-                    <ButtonLink css={{marginTop: 20, width: '100%'}} to="/">
-                      Try another
-                    </ButtonLink>
-                  </Column>
-                  <Column width="9">
-                    <Text size="subheading">Repositories</Text>
-                    <RepoFilter
-                      filter={filter}
-                      onUpdate={this.handleFilterUpdate}
-                    />
-                    <RepoList filter={filter} />
-                  </Column>
-                </Row>
-              </Container>
-            </UserContext.Provider>
-          ) : (
-            <IsolatedContainer>I have no idea what's up...</IsolatedContainer>
-          )
-        }
-      </Query>
-    )
-  }
+  return error ? (
+    <IsolatedContainer>
+      <p>There was an error loading the data</p>
+      <pre>{JSON.stringify(error, null, 2)}</pre>
+    </IsolatedContainer>
+  ) : fetching ? (
+    <LoadingMessagePage>Loading data for {username}</LoadingMessagePage>
+  ) : data ? (
+    <UserContext.Provider value={data}>
+      <Container>
+        <Row>
+          <Column width="3">
+            <Profile />
+            <PrimaryButton
+              css={{marginTop: 20, width: '100%'}}
+              onClick={logout}
+            >
+              Logout
+            </PrimaryButton>
+            <ButtonLink css={{marginTop: 20, width: '100%'}} to="/">
+              Try another
+            </ButtonLink>
+          </Column>
+          <Column width="9">
+            <Text size="subheading">Repositories</Text>
+            <RepoFilter filter={filter} onUpdate={setFilter} />
+            <RepoList filter={filter} />
+          </Column>
+        </Row>
+      </Container>
+    </UserContext.Provider>
+  ) : (
+    <IsolatedContainer>I have no idea what's up...</IsolatedContainer>
+  )
+}
+
+User.propTypes = {
+  username: PropTypes.string,
 }
 
 export default User
